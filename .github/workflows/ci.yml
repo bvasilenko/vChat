@@ -1,0 +1,97 @@
+# .github/workflows/ci.yml — copy to each per-package repo's .github/workflows/
+#
+# Triggers: push to main, PRs to main, semver tags.
+# Pinned tool versions per frameworks/manager/execution/conventions.md §5.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # Self-hosted to bypass GitHub-hosted billing-lock; per-repo runner registered ad-hoc.
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 1
+
+      - name: setup-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+          # actions/cache@v4 post-cleanup hangs on self-hosted; disable.
+          no-cache: true
+
+      - name: install
+        run: bun install --frozen-lockfile
+
+      - name: typecheck
+        run: bun run typecheck
+
+      - name: lint
+        run: bun run lint
+
+      - name: test
+        run: bun run test
+
+      - name: scrub
+        run: bash .github/scripts/scrub.sh .
+
+      - name: build
+        run: bun run build
+
+      - name: determinism-check
+        # Build twice; outputs must match byte-for-byte.
+        run: |
+          mv dist dist-1
+          bun run build
+          diff -r dist dist-1 || (echo "non-deterministic build" && exit 1)
+          rm -rf dist-1
+
+  publish:
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: [self-hosted, Linux, X64]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup-bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.2.x
+          no-cache: true
+
+      - name: install
+        run: bun install --frozen-lockfile
+
+      - name: build
+        run: bun run build
+
+      - name: setup-npm-auth
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # --provenance unsupported on self-hosted runners (sigstore requires GitHub-hosted).
+      - name: publish
+        run: npm publish --access=public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
