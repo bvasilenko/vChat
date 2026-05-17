@@ -55,7 +55,6 @@ async function executeSingleToolCall(
 }
 
 // ─── Batch execution (parallel) ───────────────────────────────────────────────
-// All tool calls within a single assistant message run concurrently.
 // Caller is responsible for checking signal.aborted before using results.
 
 export async function executeToolCalls(

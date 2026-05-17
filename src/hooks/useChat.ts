@@ -59,8 +59,6 @@ function assemblAssistantMessage(
   };
 }
 
-// One streaming turn: drives provider.chatStream, calls back for real-time UI updates.
-// Returns the fully assembled assistant message and the finish reason.
 async function runStreamingTurn(
   provider: Provider,
   messages: readonly ChatMessage[],
@@ -197,7 +195,6 @@ export function useChat(opts: UseChatOptions): UseChatReturn {
 
   const controllerRef = useRef<AbortController | null>(null);
 
-  // Sync to localStorage after every messages change (avoid stale-ref writes).
   useEffect(() => {
     if (opts.persist && opts.persistId) {
       setPersistedMessages(messages);
@@ -211,7 +208,7 @@ export function useChat(opts: UseChatOptions): UseChatReturn {
 
   const send = useCallback(
     async (text: string) => {
-      if (statusRef.current !== "idle") return;
+      if (!text.trim() || statusRef.current !== "idle") return;
 
       const controller = new AbortController();
       controllerRef.current = controller;

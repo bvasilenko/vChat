@@ -38,13 +38,13 @@ async function* decodeLines(
       if (signal?.aborted) break;
       const { done, value } = await reader.read();
       buf += done ? decoder.decode() : decoder.decode(value, { stream: !done });
-      let nl: number;
-      while ((nl = buf.indexOf("\n")) !== -1) {
-        yield buf.slice(0, nl).replace(/\r$/, "");
-        buf = buf.slice(nl + 1);
+      let m: RegExpExecArray | null;
+      while ((m = /\r\n|\r|\n/.exec(buf)) !== null) {
+        yield buf.slice(0, m.index);
+        buf = buf.slice(m.index + m[0].length);
       }
       if (done) {
-        if (buf) yield buf.replace(/\r$/, "");
+        if (buf) yield buf;
         break;
       }
     }
@@ -59,8 +59,6 @@ async function* decodeLines(
 }
 
 // ─── Stage 2: text lines → SSE data payloads ─────────────────────────────────
-// Accumulates data: fields across event boundaries, emits on blank line.
-// Stops on data: [DONE]. Ignores comment lines and non-data fields.
 
 async function* extractSSEPayloads(lines: AsyncIterable<string>): AsyncIterable<string> {
   let accumulated = "";
@@ -82,8 +80,7 @@ async function* extractSSEPayloads(lines: AsyncIterable<string>): AsyncIterable<
 }
 
 // ─── Stage 3: SSE payload string → ChatDelta[] ───────────────────────────────
-// Handles all OpenAI streaming delta variants. Emits finish last so consumers
-// can finalize tool-call accumulation before acting on finish_reason.
+// Emits finish last so consumers can finalize tool-call accumulation before acting on finish_reason.
 
 function parseSSEPayload(json: string): ChatDelta[] {
   let raw: unknown;

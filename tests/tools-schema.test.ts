@@ -130,4 +130,34 @@ describe("Tool schema validation", () => {
       expect(() => ChatMessageSchema.parse(sample)).not.toThrow();
     }
   });
+
+  it("ChatMessageSchema rejects a message with an unknown role", () => {
+    expect(() =>
+      ChatMessageSchema.parse({ role: "superuser", content: "hi" }),
+    ).toThrow();
+  });
+
+  it("executeToolCalls forwards AbortSignal to the tool execute function", async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | undefined;
+
+    const tool = {
+      name: "spy",
+      description: "spy",
+      schema: z.object({}),
+      execute: async (_args: unknown, signal?: AbortSignal) => {
+        receivedSignal = signal;
+        return "done";
+      },
+    };
+
+    const map = buildToolsMap([tool]);
+    await executeToolCalls(
+      [{ id: "c1", name: "spy", arguments: {} }],
+      map,
+      controller.signal,
+    );
+
+    expect(receivedSignal).toBe(controller.signal);
+  });
 });

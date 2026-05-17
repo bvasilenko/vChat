@@ -3,6 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { parseSSEStream } from "../src/core/stream";
 import type { ChatDelta } from "../src";
+import { collect } from "./helpers";
 
 const enc = new TextEncoder();
 
@@ -21,12 +22,6 @@ function sse(payload: string): string {
   return `data: ${payload}\n\n`;
 }
 
-async function collect(iter: AsyncIterable<ChatDelta>): Promise<ChatDelta[]> {
-  const out: ChatDelta[] = [];
-  for await (const d of iter) out.push(d);
-  return out;
-}
-
 const CONTENT_CHUNK = (text: string) =>
   JSON.stringify({ choices: [{ delta: { content: text }, finish_reason: null }] });
 
@@ -40,14 +35,13 @@ describe("parseSSEStream", () => {
     expect(deltas).toContainEqual({ kind: "content", text: "hello" });
   });
 
-  it("emits finish delta with reason from finish_reason field", async () => {
-    const stream = makeStream(
-      sse(CONTENT_CHUNK("x")),
-      sse(FINISH_CHUNK("stop")),
-      "data: [DONE]\n\n",
-    );
-    const deltas = await collect(parseSSEStream(stream));
-    expect(deltas).toContainEqual({ kind: "finish", reason: "stop" });
+  it("passes finish_reason through as the finish delta reason for all valid values", async () => {
+    const reasons = ["stop", "tool_calls", "length", "content_filter"] as const;
+    for (const reason of reasons) {
+      const stream = makeStream(sse(FINISH_CHUNK(reason)), "data: [DONE]\n\n");
+      const deltas = await collect(parseSSEStream(stream));
+      expect(deltas).toContainEqual({ kind: "finish", reason });
+    }
   });
 
   it("stops consuming after [DONE] sentinel", async () => {
@@ -57,7 +51,9 @@ describe("parseSSEStream", () => {
       sse(CONTENT_CHUNK("b")),
     );
     const deltas = await collect(parseSSEStream(stream));
-    const texts = deltas.filter((d) => d.kind === "content").map((d) => (d as { text: string }).text);
+    const texts = deltas
+      .filter((d) => d.kind === "content")
+      .map((d) => (d as Extract<ChatDelta, { kind: "content" }>).text);
     expect(texts).toEqual(["a"]);
   });
 
@@ -71,18 +67,27 @@ describe("parseSSEStream", () => {
     expect(deltas.filter((d) => d.kind === "content")).toHaveLength(1);
   });
 
-  it("silently skips malformed JSON payloads", async () => {
+  it("silently skips malformed JSON payloads and continues the stream", async () => {
     const stream = makeStream(
       "data: not-json\n\n",
       sse(CONTENT_CHUNK("good")),
       "data: [DONE]\n\n",
     );
     const deltas = await collect(parseSSEStream(stream));
-    const content = deltas.filter((d) => d.kind === "content");
-    expect(content).toHaveLength(1);
+    expect(deltas.filter((d) => d.kind === "content")).toHaveLength(1);
   });
 
-  it("emits tool_call_start and tool_call_args deltas", async () => {
+  it("skips choices-less JSON payloads without error", async () => {
+    const stream = makeStream(
+      `data: {"id":"x"}\n\n`,
+      sse(CONTENT_CHUNK("ok")),
+      "data: [DONE]\n\n",
+    );
+    const deltas = await collect(parseSSEStream(stream));
+    expect(deltas).toContainEqual({ kind: "content", text: "ok" });
+  });
+
+  it("emits tool_call_start and tool_call_args deltas for a single tool call", async () => {
     const toolStartChunk = JSON.stringify({
       choices: [{
         delta: {
@@ -93,9 +98,7 @@ describe("parseSSEStream", () => {
     });
     const toolArgsChunk = JSON.stringify({
       choices: [{
-        delta: {
-          tool_calls: [{ index: 0, function: { arguments: '{"loc":"NYC"}' } }],
-        },
+        delta: { tool_calls: [{ index: 0, function: { arguments: '{"loc":"NYC"}' } }] },
         finish_reason: null,
       }],
     });
@@ -106,12 +109,32 @@ describe("parseSSEStream", () => {
       "data: [DONE]\n\n",
     );
     const deltas = await collect(parseSSEStream(stream));
-    expect(deltas.some((d) => d.kind === "tool_call_start")).toBe(true);
-    expect(deltas.some((d) => d.kind === "tool_call_args")).toBe(true);
+    const start = deltas.find((d) => d.kind === "tool_call_start");
+    const args = deltas.find((d) => d.kind === "tool_call_args");
+    expect(start).toBeDefined();
+    expect(args).toBeDefined();
+  });
+
+  it("emits tool_call_start deltas for multiple simultaneous tool calls at different indices", async () => {
+    const chunk = JSON.stringify({
+      choices: [{
+        delta: {
+          tool_calls: [
+            { index: 0, id: "call_a", type: "function", function: { name: "tool_a", arguments: "" } },
+            { index: 1, id: "call_b", type: "function", function: { name: "tool_b", arguments: "" } },
+          ],
+        },
+        finish_reason: null,
+      }],
+    });
+    const stream = makeStream(sse(chunk), sse(FINISH_CHUNK("tool_calls")), "data: [DONE]\n\n");
+    const deltas = await collect(parseSSEStream(stream));
+    const starts = deltas.filter((d) => d.kind === "tool_call_start") as Extract<ChatDelta, { kind: "tool_call_start" }>[];
+    expect(starts).toHaveLength(2);
+    expect(starts.map((d) => d.index).sort()).toEqual([0, 1]);
   });
 
   it("handles UTF-8 multibyte characters split across Uint8Array chunks", async () => {
-    // "é" = U+00E9 = bytes 0xC3 0xA9; split the sequence across two enqueue calls
     const before = `data: {"choices":[{"delta":{"content":"caf`;
     const after = `"},"finish_reason":null}]}\n\ndata: [DONE]\n\n`;
     const stream = makeStream(
@@ -121,9 +144,15 @@ describe("parseSSEStream", () => {
       after,
     );
     const deltas = await collect(parseSSEStream(stream));
-    const content = deltas.find((d) => d.kind === "content");
-    expect(content).toBeDefined();
-    expect((content as { text: string }).text).toBe("café");
+    const content = deltas.find((d) => d.kind === "content") as Extract<ChatDelta, { kind: "content" }> | undefined;
+    expect(content?.text).toBe("café");
+  });
+
+  it("handles bare \\r line endings per SSE spec", async () => {
+    const payload = CONTENT_CHUNK("cr");
+    const stream = makeStream(`data: ${payload}\r\r`, "data: [DONE]\r\r");
+    const deltas = await collect(parseSSEStream(stream));
+    expect(deltas).toContainEqual({ kind: "content", text: "cr" });
   });
 
   it("handles \\r\\n line endings", async () => {
@@ -140,26 +169,14 @@ describe("parseSSEStream", () => {
     expect(deltas).toContainEqual({ kind: "content", text: "trailing" });
   });
 
-  it("does not process chunks when signal is already aborted before start", async () => {
-    const controller = new AbortController();
-    controller.abort();
-    const stream = makeStream(sse(CONTENT_CHUNK("never")), "data: [DONE]\n\n");
-    const deltas = await collect(parseSSEStream(stream, controller.signal));
-    expect(deltas.filter((d) => d.kind === "content")).toHaveLength(0);
-  });
-
-  it("skips choices-less JSON payloads without error", async () => {
-    const stream = makeStream(
-      `data: {"id":"x"}\n\n`,
-      sse(CONTENT_CHUNK("ok")),
-      "data: [DONE]\n\n",
-    );
+  it("handles data: field without space after colon", async () => {
+    const payload = CONTENT_CHUNK("nospace");
+    const stream = makeStream(`data:${payload}\n\n`, "data: [DONE]\n\n");
     const deltas = await collect(parseSSEStream(stream));
-    expect(deltas).toContainEqual({ kind: "content", text: "ok" });
+    expect(deltas).toContainEqual({ kind: "content", text: "nospace" });
   });
 
   it("accumulates multi-line data: fields into one JSON payload", async () => {
-    // SSE spec: multiple data: lines in one event are joined with \n (valid JSON whitespace)
     const line1 = `{"choices":[{"delta":{"content":"multi"},`;
     const line2 = `"finish_reason":null}]}`;
     const stream = makeStream(
@@ -168,5 +185,13 @@ describe("parseSSEStream", () => {
     );
     const deltas = await collect(parseSSEStream(stream));
     expect(deltas).toContainEqual({ kind: "content", text: "multi" });
+  });
+
+  it("does not process chunks when signal is already aborted before start", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const stream = makeStream(sse(CONTENT_CHUNK("never")), "data: [DONE]\n\n");
+    const deltas = await collect(parseSSEStream(stream, controller.signal));
+    expect(deltas.filter((d) => d.kind === "content")).toHaveLength(0);
   });
 });

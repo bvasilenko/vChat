@@ -1,22 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "../src";
-import type { Provider } from "../src";
-
-beforeEach(() => {
-  localStorage.clear();
-});
-
-function makeInstantProvider(): Provider {
-  return {
-    async *chatStream() {
-      yield { kind: "content", text: "Reply" };
-      yield { kind: "finish", reason: "stop" };
-    },
-  };
-}
+import { makeInstantProvider } from "./helpers";
 
 describe("History persistence", () => {
   it("useChat({ persist: true }) writes messages to localStorage after send", async () => {
@@ -108,5 +95,26 @@ describe("History persistence", () => {
     );
 
     expect(r2.current.messages.some((m) => m.role === "assistant")).toBe(true);
+  });
+
+  it("system message appears exactly once after restoring persisted state", async () => {
+    const provider = makeInstantProvider();
+    const system = "You are a helpful assistant.";
+
+    const { result: r1, unmount } = renderHook(() =>
+      useChat({ provider, persist: true, persistId: "test-system", system }),
+    );
+
+    await act(async () => {
+      await r1.current.send("ping");
+    });
+    unmount();
+
+    const { result: r2 } = renderHook(() =>
+      useChat({ provider, persist: true, persistId: "test-system", system }),
+    );
+
+    const systemMessages = r2.current.messages.filter((m) => m.role === "system");
+    expect(systemMessages).toHaveLength(1);
   });
 });

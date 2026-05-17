@@ -1,28 +1,11 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ChatMessage } from "../src";
 
-vi.mock("@booga/vui", () => ({
-  Button: ({ children, onClick, disabled, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { children?: React.ReactNode }) => (
-    <button onClick={onClick} disabled={disabled} {...rest}>{children}</button>
-  ),
-  Textarea: ({ ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => (
-    <textarea {...props} />
-  ),
-  Select: ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement> & { children?: React.ReactNode }) => (
-    <select {...props}>{children}</select>
-  ),
-  SelectItem: ({ children, ...props }: React.OptionHTMLAttributes<HTMLOptionElement> & { children?: React.ReactNode }) => (
-    <option {...props}>{children}</option>
-  ),
-}));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+vi.mock("@booga/vui");
 
 describe("Accessibility", () => {
   describe("ChatMessages", () => {
@@ -40,6 +23,12 @@ describe("Accessibility", () => {
       const { ChatMessages } = await import("../src/ui/ChatMessages");
       render(<ChatMessages messages={[]} />);
       expect(screen.getByRole("log")).toHaveAttribute("aria-live", "polite");
+    });
+
+    it("has aria-label identifying the chat region", async () => {
+      const { ChatMessages } = await import("../src/ui/ChatMessages");
+      render(<ChatMessages messages={[]} />);
+      expect(screen.getByRole("log")).toHaveAttribute("aria-label", "Chat messages");
     });
 
     it("renders user and assistant messages as articles", async () => {
@@ -61,6 +50,15 @@ describe("Accessibility", () => {
       render(<ChatMessages messages={messages} />);
       expect(screen.queryByText("hidden")).not.toBeInTheDocument();
       expect(screen.getByText("visible")).toBeInTheDocument();
+    });
+
+    it("tool result messages render with aria-label for screen readers", async () => {
+      const { ChatMessages } = await import("../src/ui/ChatMessages");
+      const messages: ChatMessage[] = [
+        { role: "tool", toolCallId: "c1", content: '{"temp":72}' },
+      ];
+      render(<ChatMessages messages={messages} />);
+      expect(screen.getByLabelText("Tool result")).toBeInTheDocument();
     });
   });
 
@@ -86,7 +84,6 @@ describe("Accessibility", () => {
     it("send button becomes enabled after typing", async () => {
       const { ChatInput } = await import("../src/ui/ChatInput");
       render(<ChatInput onSubmit={vi.fn()} disabled={false} />);
-
       await userEvent.type(screen.getByRole("textbox"), "hello");
       expect(screen.getByRole("button", { name: /send/i })).toBeEnabled();
     });
@@ -102,10 +99,8 @@ describe("Accessibility", () => {
       const { ChatInput } = await import("../src/ui/ChatInput");
       const onSubmit = vi.fn();
       render(<ChatInput onSubmit={onSubmit} disabled={false} />);
-
       await userEvent.type(screen.getByRole("textbox"), "greetings");
       await userEvent.click(screen.getByRole("button", { name: /send/i }));
-
       expect(onSubmit).toHaveBeenCalledWith("greetings");
     });
 
@@ -113,11 +108,26 @@ describe("Accessibility", () => {
       const { ChatInput } = await import("../src/ui/ChatInput");
       render(<ChatInput onSubmit={vi.fn()} disabled={false} />);
       const textarea = screen.getByRole("textbox");
-
       await userEvent.type(textarea, "msg");
       await userEvent.click(screen.getByRole("button", { name: /send/i }));
-
       expect(textarea).toHaveValue("");
+    });
+
+    it("submits on Enter key press without Shift", async () => {
+      const { ChatInput } = await import("../src/ui/ChatInput");
+      const onSubmit = vi.fn();
+      render(<ChatInput onSubmit={onSubmit} disabled={false} />);
+      await userEvent.type(screen.getByRole("textbox"), "hello{Enter}");
+      expect(onSubmit).toHaveBeenCalledWith("hello");
+    });
+
+    it("does not submit on Shift+Enter", async () => {
+      const { ChatInput } = await import("../src/ui/ChatInput");
+      const onSubmit = vi.fn();
+      render(<ChatInput onSubmit={onSubmit} disabled={false} />);
+      await userEvent.type(screen.getByRole("textbox"), "hello");
+      await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+      expect(onSubmit).not.toHaveBeenCalled();
     });
   });
 

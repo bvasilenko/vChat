@@ -1,15 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { z } from "zod";
 import { useChat } from "../src";
 import type { Provider, Tool } from "../src";
-
-beforeEach(() => {
-  localStorage.clear();
-  vi.clearAllMocks();
-});
 
 function makeTwoRoundProvider(): Provider {
   let round = 0;
@@ -173,5 +168,33 @@ describe("Tool dispatch", () => {
 
     expect(result.current.status).toBe("error");
     expect(result.current.error?.message).toContain("tool exploded");
+  });
+
+  it("exceeding maxToolRounds results in error status", async () => {
+    const loopingProvider: Provider = {
+      async *chatStream() {
+        yield { kind: "tool_call_start", index: 0, id: "call_loop", name: "loop" };
+        yield { kind: "tool_call_args", index: 0, argumentsChunk: "{}" };
+        yield { kind: "finish", reason: "tool_calls" };
+      },
+    };
+
+    const loopTool: Tool = {
+      name: "loop",
+      description: "loop",
+      schema: z.object({}),
+      execute: async () => "keep going",
+    };
+
+    const { result } = renderHook(() =>
+      useChat({ provider: loopingProvider, tools: [loopTool], maxToolRounds: 1 }),
+    );
+
+    await act(async () => {
+      await result.current.send("loop");
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error?.name).toBe("ToolRoundLimitError");
   });
 });

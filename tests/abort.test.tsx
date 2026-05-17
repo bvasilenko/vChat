@@ -1,14 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useChat } from "../src";
 import type { Provider } from "../src";
-
-beforeEach(() => {
-  localStorage.clear();
-  vi.clearAllMocks();
-});
 
 describe("Abort", () => {
   it("abort cancels an in-flight stream and resets status to idle", async () => {
@@ -65,13 +60,9 @@ describe("Abort", () => {
       async *chatStream({ signal }) {
         yield { kind: "content", text: "partial" };
         await new Promise<void>((resolve) => {
-          const check = () => {
-            if (signal?.aborted) resolve();
-            else setTimeout(check, 5);
-          };
-          check();
+          if (signal?.aborted) return resolve();
+          signal?.addEventListener("abort", () => resolve());
         });
-        if (!signal?.aborted) yield { kind: "finish", reason: "stop" };
       },
     };
 
@@ -82,13 +73,53 @@ describe("Abort", () => {
       sendPromise = result.current.send("test");
     });
 
+    // Flush the microtask queue so the generator reaches its abort-await before abort() fires.
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    await act(async () => {
       result.current.abort();
       await sendPromise!;
     });
 
     const assistant = result.current.messages.find((m) => m.role === "assistant");
     expect(assistant?.content).toContain("partial");
+  });
+
+  it("status returns to idle after abort, allowing a subsequent send", async () => {
+    let streamCount = 0;
+    const provider: Provider = {
+      async *chatStream({ signal }) {
+        streamCount++;
+        if (streamCount === 1) {
+          await new Promise<void>((resolve) => {
+            signal?.addEventListener("abort", () => resolve());
+          });
+        } else {
+          yield { kind: "content", text: "ok" };
+        }
+        yield { kind: "finish", reason: "stop" };
+      },
+    };
+
+    const { result } = renderHook(() => useChat({ provider }));
+
+    let firstSend: Promise<void>;
+    act(() => { firstSend = result.current.send("first"); });
+    await act(async () => {
+      result.current.abort();
+      await firstSend!;
+    });
+
+    expect(result.current.status).toBe("idle");
+
+    await act(async () => {
+      await result.current.send("second");
+    });
+
+    expect(result.current.status).toBe("idle");
+    const userMessages = result.current.messages.filter((m) => m.role === "user");
+    expect(userMessages.some((m) => m.content === "second")).toBe(true);
   });
 });
