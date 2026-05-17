@@ -1,6 +1,6 @@
 {
   "name": "@booga/vchat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Chat UI over any OpenAI-compatible endpoint. Provider abstraction, streaming deltas, tool-call dispatch, accessible components.",
   "type": "module",
   "sideEffects": false,
@@ -29,9 +29,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@booga/vforms": "^0.1.0",
+    "@booga/vforms": "^0.2.0",
     "@booga/vhooks": "^0.1.0",
-    "@booga/vui": "^0.1.0",
+    "@booga/vui": "^0.2.0",
     "zod": "^3.0.0",
     "zod-to-json-schema": "^3.0.0"
   },
