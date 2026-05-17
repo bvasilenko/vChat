@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { describe, it, expect } from "vitest";
 import { parseSSEStream } from "../src/core/stream";
 import type { ChatDelta } from "../src";

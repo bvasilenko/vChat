@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import type { Provider, Tool } from "../core/types";
 import { useChat } from "../hooks/useChat";
 import { ChatMessages } from "./ChatMessages";

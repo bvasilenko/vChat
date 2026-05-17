@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useLocalStorage } from "@booga/vhooks";
 import type { Provider, Tool, ChatMessage, ChatDelta, FinishReason, ToolCall } from "../core/types";

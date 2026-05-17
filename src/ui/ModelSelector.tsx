@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { Select, SelectItem } from "@booga/vui";
 
 export interface ModelSelectorProps {

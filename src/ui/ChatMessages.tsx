@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import type { ChatMessage } from "../core/types";
 
 export interface ChatMessagesProps {

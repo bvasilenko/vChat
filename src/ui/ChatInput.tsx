@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { useState, type KeyboardEvent } from "react";
 import { Button, Textarea } from "@booga/vui";
 

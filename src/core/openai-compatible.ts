@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { parseSSEStream } from "./stream";
 import type { Provider, ChatRequest, ChatDelta, ChatMessage, Tool } from "./types";

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 bvasilenko
 import type { ZodError } from "zod";
 import type { Tool, ToolCall, ChatMessage } from "./types";
 
