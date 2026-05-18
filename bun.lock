@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 0,
   "workspaces": {
     "": {
       "name": "@booga/vchat",
@@ -7,6 +7,8 @@
         "@booga/vforms": "^0.2.0",
         "@booga/vhooks": "^0.1.0",
         "@booga/vui": "^0.2.0",
+        "clsx": "^2.0.0",
+        "tailwind-merge": "^2.0.0",
         "zod": "^3.0.0",
         "zod-to-json-schema": "^3.0.0",
       },
@@ -89,7 +91,7 @@
 
     "@booga/vhooks": ["@booga/vhooks@0.1.0", "", { "peerDependencies": { "react": "^18.0.0" } }, "sha512-vCskDaf1itqoxOsnb7ketvFAmycNUBFSIkL4efYNvdhhUoc4noXpEUQb0vLs2gQf/6IZ3BsmlXaELAst6YZfRg=="],
 
-    "@booga/vtheme": ["@booga/vtheme@0.2.0", "", { "dependencies": { "zod": "^3.0.0" }, "peerDependencies": { "tailwindcss": "^3.4.0" } }, "sha512-R+f/2xgJpi5MPPQa5g7UyuNVDelI31786OOEwr5PPaIIuMdTYvVd0Pl08k86qjJ9OooZNjUwuw+M7ASOf906Vg=="],
+    "@booga/vtheme": ["@booga/vtheme@0.2.1", "", { "dependencies": { "zod": "^3.0.0" }, "peerDependencies": { "tailwindcss": "^3.4.0" } }, "sha512-cuVkZIyjTe1I7/N58EDoaWeZ/V2MpsGx9oiz6TsyjvGnOYDXAH/k1N0K7nF1qeDYsNEweUptIrcttR8/JZlbhg=="],
 
     "@booga/vui": ["@booga/vui@0.2.0", "", { "dependencies": { "@booga/vtheme": "^0.2.0", "@radix-ui/react-slot": "^1.0.0", "class-variance-authority": "^0.7.0", "clsx": "^2.0.0", "lucide-react": "^1.0.0", "tailwind-merge": "^2.0.0" }, "peerDependencies": { "react": "^18.0.0", "react-dom": "^18.0.0", "tailwindcss": "^3.4.0" } }, "sha512-I8IUuGcR53q/3eAnvpcJ3ck6X1NkNUns15hxpaWV7g+XVFIhBvif5+CX5KJ9i3XFhm/UgBF2RLT3+Teo7iaIFg=="],
 

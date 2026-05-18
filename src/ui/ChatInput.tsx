@@ -2,6 +2,7 @@
 // Copyright (c) 2026 bvasilenko
 import { useState, type KeyboardEvent } from "react";
 import { Button, Textarea } from "@booga/vui";
+import { cn } from "./cn";
 
 export interface ChatInputProps {
   readonly onSubmit: (text: string) => void;
@@ -33,12 +34,17 @@ export function ChatInput({
   };
 
   return (
-    <div className={className} role="group" aria-label="Message input">
+    <div
+      className={cn("flex items-end gap-2 border-t border-border p-3", className)}
+      role="group"
+      aria-label="Message input"
+    >
       <label htmlFor="vchat-input" className="sr-only">
         Message
       </label>
       <Textarea
         id="vchat-input"
+        className="flex-1"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}

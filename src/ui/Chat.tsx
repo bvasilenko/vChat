@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2026 bvasilenko
+import { cn } from "./cn";
 import type { Provider, Tool } from "../core/types";
 import { useChat } from "../hooks/useChat";
 import { ChatMessages } from "./ChatMessages";
@@ -40,13 +41,17 @@ export function Chat({
   const isStreaming = status === "sending" || status === "streaming";
 
   return (
-    <div className={className} aria-label="Chat">
+    <div
+      className={cn("flex h-full flex-col bg-background text-foreground", className)}
+      aria-label="Chat"
+    >
       {models && models.length > 0 && onModelChange && (
         <ModelSelector
           models={models}
           value={selectedModel ?? models[0] ?? ""}
           onChange={onModelChange}
           disabled={isStreaming}
+          className="m-3"
         />
       )}
       <ChatMessages messages={messages} />
