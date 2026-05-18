@@ -42,19 +42,24 @@ export function ChatInput({
       <label htmlFor="vchat-input" className="sr-only">
         Message
       </label>
-      <Textarea
-        id="vchat-input"
-        className="flex-1"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        disabled={disabled}
-        rows={1}
-        aria-label="Message"
-      />
+      {/* Wrapper is the flex item that grows/shrinks; `min-w-0` lets it shrink
+          below the textarea's content width so the Send button is never
+          pushed past the container edge. */}
+      <div className="min-w-0 flex-1">
+        <Textarea
+          id="vchat-input"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+          rows={1}
+          aria-label="Message"
+        />
+      </div>
       <Button
         type="button"
+        className="shrink-0"
         onClick={handleSubmit}
         disabled={disabled || value.trim().length === 0}
         aria-label="Send message"

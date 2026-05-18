@@ -1,6 +1,6 @@
 {
   "name": "@booga/vchat",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Chat UI over any OpenAI-compatible endpoint. Provider abstraction, streaming deltas, tool-call dispatch, accessible components.",
   "type": "module",
   "sideEffects": false,

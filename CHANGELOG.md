@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-05-18
+
+### Fixed
+
+- `ChatInput`: the Send button could be pushed past the container's right edge. The textarea (`w-full` from vUi) was a flex sibling of the button with no flex constraint, so it claimed the full row width. The textarea is now wrapped in a `min-w-0 flex-1` element (the wrapper grows/shrinks; `min-w-0` permits shrinking below content width) and the Send button is `shrink-0`. Verified: Send sits fully inside the container with the row's padding intact.
+
 ## [0.2.1] - 2026-05-18
 
 ### Fixed
