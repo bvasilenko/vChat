@@ -1,0 +1,23 @@
+{
+  "name": "vchat-drawer-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5192",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@booga/vchat": "^0.3.0",
+    "@booga/vtheme": "^0.2.2",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.4.0"
+  }
+}

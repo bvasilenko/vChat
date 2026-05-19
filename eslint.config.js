@@ -16,6 +16,8 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ["dist/**", "coverage/**", "node_modules/**"],
+    // demo/ is a standalone host app with its own toolchain — not part of the
+    // package lint surface.
+    ignores: ["dist/**", "coverage/**", "node_modules/**", "demo/**"],
   },
 );
